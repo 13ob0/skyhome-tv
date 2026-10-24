@@ -1,0 +1,11 @@
+.DS_Store
+*.apk
+*.idsig
+*.zip
+*.jks
+*.keystore
+**/.local/
+**/build/
+**/.gradle/
+**/__pycache__/
+**/local.properties

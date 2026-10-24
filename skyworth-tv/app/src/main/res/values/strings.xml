@@ -1,0 +1,3 @@
+<resources>
+    <string name="home_key_description">将遥控器 Home 键设为返回山岚桌面。处理 Home 按键，并仅检查创维系统桌面的窗口组件名称以兼容固件拦截。不获取屏幕内容，不记录按键，其他按键照常工作。可随时在系统辅助功能中关闭。</string>
+</resources>
