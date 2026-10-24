@@ -62,7 +62,7 @@ key(82) # menu
 assert any(n.get('text')=='设置' for n in ui())
 key(20) # next settings row
 focused=next((n.get('text') for n in ui() if n.get('focused')=='true'),None)
-assert focused and '首页布局' in focused, 'D-pad did not move to layout row'
+assert focused and '字号' in focused, 'D-pad did not move to text-size row'
 capture('settings')
 results.append('PASS menu key and D-pad movement')
 key(4)

@@ -51,7 +51,8 @@ if not key.exists():
     run(JAVA / 'keytool', '-genkeypair', '-keystore', key, '-storepass', 'android', '-keypass', 'android',
         '-alias', 'androiddebugkey', '-dname', 'CN=SkyHome Local Test', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000')
     key.chmod(0o600)
-result = ROOT / 'skyhome-v1.0.0.apk'
+version = manifest.getroot().get('{http://schemas.android.com/apk/res/android}versionName')
+result = ROOT / ('skyhome-v' + version + '.apk')
 run(TOOLS / 'apksigner', 'sign', '--ks', key, '--ks-pass', 'pass:android', '--ks-key-alias', 'androiddebugkey',
     '--out', result, OUT / 'aligned.apk')
 run(TOOLS / 'apksigner', 'verify', '--verbose', result)
