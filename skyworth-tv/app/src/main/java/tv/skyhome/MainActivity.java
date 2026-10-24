@@ -23,10 +23,10 @@ public class MainActivity extends Activity {
         MenuPosition(MenuPage page){focusTag=page.focusTag;scrollY=page.scrollY;}
     }
     private TextView breadcrumb, menuHint;
+    private ParentMenuView parentEcho;
     private static final class MenuPage {
         String key, title, subtitle, focusTag;
         LinearLayout view, content;
-        TextView summary;
         ScrollView scroll;
         Runnable rebuild;
         boolean grid, reading;
@@ -129,6 +129,7 @@ public class MainActivity extends Activity {
                 | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     }
     private int screenMargin() { return Math.round(getResources().getDisplayMetrics().widthPixels*.065f)+dp((prefs.inset()-1)*12); }
+    private int contentTop() { return Math.round(getResources().getDisplayMetrics().heightPixels*.43f); }
     private int dp(float n) { return Math.round(n*getResources().getDisplayMetrics().density); }
     private FrameLayout.LayoutParams full() { return new FrameLayout.LayoutParams(-1,-1); }
     private LinearLayout vertical() { LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
@@ -196,38 +197,36 @@ public class MainActivity extends Activity {
         caption=text(HomePreferences.NAMES[currentWallpaper],12,MUTED);
         FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.RIGHT);cp.setMargins(0,0,dp(margin),dp(20));home.addView(caption,cp);
 
-        buildList(margin);
+        buildList();
         buildingHome=false;
         if(panel==null) restoreHomeFocus(); else { layoutMenus(false); root.bringChildToFront(panel); }
     }
-    private void buildList(int margin) {
+    private void buildList() {
         LinearLayout area=vertical();
-        TextView eyebrow=text("常 用 应 用",12,GREEN);eyebrow.setPadding(dp(3),0,0,dp(12));area.addView(eyebrow);
-        ScrollView scroll=new ScrollView(this); scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false); scroll.setFillViewport(false);
-        scroll.setFocusable(false);
-        scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        scroll.setVerticalFadingEdgeEnabled(false);
-        LinearLayout list=vertical();
+        TextView eyebrow=text("常 用 应 用",13,GREEN);eyebrow.setPadding(dp(3),0,0,0);
+        area.addView(eyebrow,new LinearLayout.LayoutParams(-1,dp(34)));
+        ScrollView scroll=new ScrollView(this);scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
+        scroll.setFocusable(false);scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);scroll.setFillViewport(false);
+        LinearLayout list=vertical();list.setPadding(dp(3),dp(6),dp(3),dp(6));
         for(String pkg:favorites) {
-            TextView b=button(label(pkg),()->openApp(pkg)); b.setTag(pkg); b.setTextSize(23+prefs.size()*3);
-            b.setPadding(dp(3),dp(7),dp(22),dp(7));
+            TextView b=button(label(pkg),()->openApp(pkg));b.setTag(pkg);b.setTextSize(23+prefs.size()*3);
             b.setOnLongClickListener(v->{showFavoriteActions(pkg);return true;});
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(48));
-            p.bottomMargin=list.getChildCount()<favorites.size()-1?dp(3):0;list.addView(b,p);
+            LinearLayout.LayoutParams row=new LinearLayout.LayoutParams(-1,dp(48));
+            row.bottomMargin=list.getChildCount()<favorites.size()-1?dp(3):0;list.addView(b,row);
             if(list.getChildCount()==1)firstHome=b;
         }
-        if(favorites.isEmpty()) list.addView(button("添加常用应用  +",()->showApps(true)),new LinearLayout.LayoutParams(-1,dp(48)));
-        scroll.addView(list);area.addView(scroll,new LinearLayout.LayoutParams(dp(310),-2));
-        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(320),-2,Gravity.LEFT|Gravity.BOTTOM);
-        ap.setMargins(dp(margin),dp(150),0,dp(120));
-        int maxHeight= Math.max(dp(180),getResources().getDisplayMetrics().heightPixels-dp(280));
-        area.setLayoutParams(ap); homeBody.addView(area);
-        // Measure cap keeps all nine favorites scrollable on 720p and 1080p TVs.
-        // Sum rounded pixel dimensions, rather than rounding the combined dp value.
-        // At density 1.5, three 48dp rows + 3dp margins otherwise overflow by one pixel.
-        int contentHeight=Math.max(1,favorites.size())*dp(48)+Math.max(0,favorites.size()-1)*dp(3);
-        scroll.getLayoutParams().height=Math.min(contentHeight,maxHeight);
+        if(favorites.isEmpty()) {
+            TextView add=button("添加常用应用  +",()->showApps(true));add.setTag("add-favorite");
+            list.addView(add,new LinearLayout.LayoutParams(-1,dp(48)));firstHome=add;
+        }
+        int count=Math.max(1,favorites.size()), row=dp(48), gap=dp(3), padding=dp(6)*2;
+        int available=getResources().getDisplayMetrics().heightPixels-contentTop()-dp(120)-dp(34);
+        int visible=Math.min(count,Math.max(1,(available-padding+gap)/(row+gap)));
+        int viewport=visible*row+(visible-1)*gap+padding;
+        scroll.addView(list);area.addView(scroll,new LinearLayout.LayoutParams(-1,viewport));
+        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(320),-2,Gravity.TOP|Gravity.LEFT);
+        ap.leftMargin=screenMargin();ap.topMargin=contentTop();homeBody.addView(area,ap);
     }
     private void restoreHomeFocus() {
         View match=home.findViewWithTag(homeFocus);
@@ -281,6 +280,7 @@ public class MainActivity extends Activity {
             panel=new FrameLayout(this);panel.setClickable(true);panel.setClipChildren(true);root.addView(panel,full());
             breadcrumb=text("",12,MUTED);panel.addView(breadcrumb);
             menuHint=text("",12,MUTED);panel.addView(menuHint);
+            parentEcho=new ParentMenuView(this);panel.addView(parentEcho);
         }
         MenuPage page=null;
         for(int i=0;i<pages.size();i++)if(pages.get(i).key.equals(key)) {
@@ -295,72 +295,82 @@ public class MainActivity extends Activity {
             page.scroll=new ScrollView(this);page.scroll.setVerticalScrollBarEnabled(false);
             page.scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);page.scroll.setFillViewport(false);
             page.scroll.setFocusable(false);page.scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            page.summary=text("",22,MUTED);page.summary.setLineSpacing(dp(24),1);
             page.content=vertical();page.content.setPadding(dp(3),dp(6),dp(3),dp(6));
             page.scroll.addView(page.content);pages.add(page);panel.addView(page.view);
         }
         page.title=title;page.subtitle=subtitle;page.grid=grid;page.reading=key.equals("licenses")||key.equals("info");page.rebuild=rebuild;
         page.content.removeAllViews();page.actions.clear();page.view.removeAllViews();
-        TextView heading=text(title,13,GREEN);heading.setLetterSpacing(.14f);
-        LinearLayout.LayoutParams headingParams=new LinearLayout.LayoutParams(-1,dp(34));
-        page.view.addView(heading,headingParams);
+        page.scroll.setContentDescription("菜单："+title);
         page.view.addView(page.scroll,new LinearLayout.LayoutParams(-1,0,1));
-        page.view.addView(page.summary,new LinearLayout.LayoutParams(-1,-2));
-        layoutMenus(added);
+        page.view.setVisibility(View.INVISIBLE);
         final MenuPage ready=page;
-        page.view.post(()->restorePage(ready));
+        // The caller fills the list synchronously. Measure only after all rows exist.
+        page.view.post(()->{if(topPage()==ready){layoutMenus(added);restorePage(ready);}});
         return page.content;
     }
     private void highlightHome(View view, boolean showingMenu) {
         if(view instanceof TextView && view.getTag()!=null)view.setSelected(showingMenu && view.getTag().equals(homeFocus));
         if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)highlightHome(group.getChildAt(i),showingMenu);}
     }
-    /** Keep the two most recent ancestors as dim, inert text columns. */
+    private void updateParentEcho(int width,int height,int margin) {
+        List<String> labels=new ArrayList<>();int selected=-1,offset=0;String title;float size;
+        if(pages.size()==1) {
+            title="首页";size=23+prefs.size()*3;
+            for(String pkg:favorites)labels.add(label(pkg));
+            selected=favorites.indexOf(homeFocus);
+            if(labels.isEmpty())labels.add("添加常用应用");
+        } else {
+            MenuPage previous=pages.get(pages.size()-2);title=previous.title;size=22+prefs.size();
+            for(int i=0;i<previous.actions.size();i++) {
+                TextView action=previous.actions.get(i);
+                String value=action.getText().toString();
+                if(!previous.grid){int split=value.indexOf(" · ");if(split>=0)value=value.substring(0,split);}
+                labels.add(value);
+                if(action.getTag()!=null&&action.getTag().equals(previous.focusTag))selected=i;
+            }
+            if(previous.grid) {
+                int start=Math.max(0,selected-2),end=Math.min(labels.size(),start+6);
+                labels=new ArrayList<>(labels.subList(start,end));selected-=start;
+            } else offset=previous.scrollY;
+        }
+        int y=Math.round(height*.39f);
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(Math.max(dp(20),margin-dp(12)),Math.max(dp(80),height-y-dp(112)));
+        lp.topMargin=y;parentEcho.setLayoutParams(lp);
+        parentEcho.showMenu(title,labels,selected,offset,size);parentEcho.setAlpha(.23f);
+    }
+    /** Center the actual list (or its capped scroll viewport); retain the left edge parent echo. */
     private void layoutMenus(boolean entering) {
         if(panel==null)return;
         int width=getResources().getDisplayMetrics().widthPixels;
         int height=getResources().getDisplayMetrics().heightPixels;
-        int margin=screenMargin(), depth=pages.size();
-        homeBody.setAlpha(topPage().grid&&depth>1?0f:depth==1?.24f:depth==2?.10f:0f);
-        homeBody.findViewWithTag("homeHelp").setVisibility(View.INVISIBLE);
-        highlightHome(homeBody,true);
+        int margin=screenMargin(),depth=pages.size();
+        homeBody.setAlpha(0f);
         homeBody.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         homeBody.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         for(int i=0;i<depth;i++) {
-            MenuPage page=pages.get(i);int age=depth-1-i;
-            boolean current=age==0;
-            page.view.setVisibility(age>2||(topPage().grid&&age>1)?View.INVISIBLE:View.VISIBLE);
+            MenuPage page=pages.get(i);boolean current=i==depth-1;
+            page.view.setVisibility(current?View.VISIBLE:View.INVISIBLE);
             page.view.setDescendantFocusability(current?ViewGroup.FOCUS_AFTER_DESCENDANTS:ViewGroup.FOCUS_BLOCK_DESCENDANTS);
             page.view.setImportantForAccessibility(current?View.IMPORTANT_FOR_ACCESSIBILITY_AUTO:View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-            for(TextView b:page.actions){b.setEnabled(current);b.setSelected(!current && b.getTag()!=null && b.getTag().equals(page.focusTag));}
+            for(TextView b:page.actions){b.setEnabled(current);b.setSelected(false);}
             page.scroll.setOnTouchListener((v,event)->!current);
-            page.scroll.setFocusable(current&&page.reading);
-            page.scroll.setFocusableInTouchMode(current&&page.reading);
-            page.scroll.setVisibility(!current&&page.grid?View.GONE:View.VISIBLE);
-            page.summary.setVisibility(!current&&page.grid?View.VISIBLE:View.GONE);
-            if(!current&&page.grid) {
-                StringBuilder context=new StringBuilder();int selected=0;
-                for(int n=0;n<page.actions.size();n++)if(page.actions.get(n).getTag().equals(page.focusTag))selected=n;
-                for(int n=Math.max(0,selected-1);n<Math.min(page.actions.size(),selected+3);n++){if(context.length()>0)context.append("\n");context.append(page.actions.get(n).getText());}
-                page.summary.setText(context);
-            }
-            float left,top;
-            if(current) { left=page.grid?.30f:depth==1?.36f:.57f;top=page.grid?.28f:depth==1?.34f:.27f; }
-            else if(age==1) {left=topPage().grid?(float)margin/width:.31f;top=topPage().grid?.44f:.39f;}
-            else {left=(float)margin/width;top=.50f;}
-            int x=Math.round(width*left), y=Math.round(height*top);
-            int columnWidth=current?width-x-margin:Math.round(width*.23f);
-            int columnHeight=Math.max(dp(120),height-y-dp(112));
-            if(current&&!page.reading) {
-                int fixed=dp(34)+dp(6)*2, stride=dp(page.grid?82:54);
-                columnHeight=fixed+Math.max(1,(columnHeight-fixed)/stride)*stride;
+            page.scroll.setFocusable(current&&page.reading);page.scroll.setFocusableInTouchMode(current&&page.reading);
+            if(!current)continue;
+            int columnWidth=width-margin*2,padding=dp(6)*2;
+            int maximum=Math.max(dp(94),Math.min(Math.round(height*.64f),height-dp(320)));
+            page.content.measure(View.MeasureSpec.makeMeasureSpec(columnWidth,View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));
+            int needed=page.content.getMeasuredHeight(),columnHeight=Math.min(needed,maximum);
+            if(!page.reading&&needed>maximum) {
+                int stride=dp(page.grid?82:54);
+                columnHeight=padding+Math.max(1,(maximum-padding)/stride)*stride;
             }
             FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(columnWidth,columnHeight);
-            lp.leftMargin=x;lp.topMargin=y;page.view.setLayoutParams(lp);
-            page.view.animate().cancel();page.view.setTranslationY(0);
-            page.view.setAlpha(current?1f:age==1?.24f:.10f);
-            if(entering&&current) {page.view.setTranslationY(dp(14));page.view.setAlpha(0f);page.view.animate().translationY(0).alpha(1).setDuration(180).start();}
+            lp.leftMargin=margin;lp.topMargin=(height-columnHeight)/2;page.view.setLayoutParams(lp);
+            page.view.animate().cancel();page.view.setTranslationY(0);page.view.setAlpha(1f);
+            if(entering){page.view.setTranslationY(dp(8));page.view.setAlpha(0f);page.view.animate().translationY(0).alpha(1).setDuration(180).start();}
         }
+        updateParentEcho(width,height,margin);
         StringBuilder path=new StringBuilder("首页");
         for(MenuPage page:pages)path.append(" / ").append(page.title);
         breadcrumb.setText(path);breadcrumb.setSingleLine(true);breadcrumb.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -403,7 +413,7 @@ public class MainActivity extends Activity {
     }
     private void closeAllPanels() {
         if(panel!=null)root.removeView(panel);
-        panel=null;pages.clear();menuPositions.clear();
+        panel=null;parentEcho=null;pages.clear();menuPositions.clear();
         highlightHome(homeBody,false);homeBody.setAlpha(1f);homeBody.findViewWithTag("homeHelp").setVisibility(View.VISIBLE);homeBody.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         homeBody.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         restoreHomeFocus();priorFocus=null;scheduleCycle();
@@ -490,7 +500,7 @@ public class MainActivity extends Activity {
         row(c,"返回上一级",this::closePanel);
     }
     private void showAbout() {
-        LinearLayout c=sheet("about","关于山岚  1.1","版本 1.1.0 · 原生文字桌面",false,this::showAbout);
+        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.1 · 原生文字桌面",false,this::showAbout);
         row(c,"设备信息与使用说明",this::showInfo);
         row(c,"许可与照片署名",this::showLicenses);
         row(c,"返回上一级",this::closePanel);

@@ -7,7 +7,7 @@
 ## 功能
 
 - 简约文字列表，焦点放大变白；常用应用添加、移除和排序。
-- 子菜单向右上方展开，上级文字逐层渐隐；全部应用以纯文字网格展示。
+- 子菜单与应用网格无标题、整体垂直居中，父级在左边缘半隐；面包屑保留当前位置。
 - 五张离线照片、纯色背景与定时轮播。
 - 创维 HDMI 信号源菜单、投屏、系统设置和原桌面入口。
 - 字号、屏幕边距与遥控器焦点适配。
@@ -15,13 +15,13 @@
 
 ## 安装
 
-当前版本为 1.1.0，采用下沿展开的文字界面。
+当前版本为 1.2.1，采用无标题、子菜单垂直居中的文字界面。
 
-从 [v1.1.0 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.1.0) 下载 APK，通过电视本地安装或 ADB 安装：
+从 [v1.2.1 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.2.1) 下载 APK，通过电视本地安装或 ADB 安装：
 
 ```sh
 adb connect <电视IP>:5555
-adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.1.0.apk
+adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.1.apk
 adb -s <电视IP>:5555 shell am start -n tv.skyhome/.MainActivity
 ```
 

@@ -20,12 +20,14 @@ def key(code,count=1):
 def nodes():
     for attempt in range(3):
         try:
-            run('shell','uiautomator','dump','/sdcard/skyhome-navigation.xml');break
-        except subprocess.CalledProcessError:
+            result=run('shell','uiautomator','dump','/sdcard/skyhome-navigation.xml')
+            if b'dumped to' not in result:
+                raise RuntimeError('UIAutomator did not produce a fresh tree')
+            raw=run('shell','cat','/sdcard/skyhome-navigation.xml')
+            return list(ET.fromstring(raw[raw.index(b'<?xml'):]).iter('node'))
+        except (subprocess.CalledProcessError,RuntimeError):
             if attempt==2:raise
             time.sleep(.8)
-    raw=run('shell','cat','/sdcard/skyhome-navigation.xml')
-    return list(ET.fromstring(raw[raw.index(b'<?xml'):]).iter('node'))
 def focused():return next((n for n in nodes() if n.get('focused')=='true'),None)
 def shot(name):
     raw=run('exec-out','screencap','-p');(out/(name+'.png')).write_bytes(raw[raw.index(b'\x89PNG'):])
@@ -35,16 +37,27 @@ def tap(text):
     run('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(.2)
     # TextViews in touch focus mode establish focus on the first touch.
     if focused().get('text')==text:key(23)
+anchor=None
+def check_center(title):
+    tree=nodes()
+    current=next(n for n in tree if n.get('content-desc')=='菜单：'+title)
+    bounds=list(map(int,re.findall(r'\d+',current.get('bounds'))))
+    assert bounds[0]==anchor[0], (title,bounds,anchor)
+    assert abs((bounds[1]+bounds[3])/2-screen_height/2)<=1, (title,bounds,screen_height)
+    assert not any(n.get('text')==title and n.get('clickable')=='false' for n in tree), 'Redundant submenu title'
+screen_height=int(re.findall(r'\d+x(\d+)',run('shell','wm','size').decode())[-1])
 results=[]
 def passed(message):
     results.append(message);print(message,flush=True)
 run('shell','am','start','-a','android.intent.action.MAIN','-c','android.intent.category.HOME','-n','tv.skyhome/.MainActivity');time.sleep(.5)
 assert focused() is not None
+anchor=list(map(int,re.findall(r'\d+',next(n for n in nodes() if n.get('text')=='常 用 应 用').get('bounds'))))
 shot('home');passed('PASS home with remote focus')
 key(82)
+check_center('设置')
 assert focused().get('text').startswith('背景')
 key(23)
-assert any(n.get('text')=='背景' for n in nodes())
+check_center('背景')
 key(20,2)
 backgroundFocus=focused().get('text');shot('background-depth-3')
 key(4)
@@ -77,13 +90,13 @@ assert focused().get('text')=='关于与兼容性'
 key(4)
 passed('PASS four-level navigation and parent focus restoration')
 key(82);key(20,3);key(23)
-assert any(n.get('text')=='编辑常用应用' for n in nodes())
+check_center('编辑常用应用')
 shot('edit-grid-depth-3')
 key(4)
 assert focused().get('text').startswith('编辑常用')
 key(4)
 passed('PASS nested edit grid and parent focus restoration')
-tap('全部应用');grid=focused();first=grid.get('text');shot('apps')
+tap('全部应用');check_center('全部应用');grid=focused();first=grid.get('text');shot('apps');passed('PASS title-free submenus centered vertically with the home left margin')
 key(22);second=focused().get('text');assert second!=first
 key(21);assert focused().get('text')==first
 key(19);assert focused().get('text')==first

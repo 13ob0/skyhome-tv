@@ -59,7 +59,7 @@ focused=next((n.get('text') for n in nodes if n.get('focused')=='true'),None)
 assert focused, 'No initial remote focus'
 results.append('PASS home and initial D-pad focus: '+focused)
 key(82) # menu
-assert any(n.get('text')=='设置' for n in ui())
+assert any(n.get('content-desc')=='菜单：设置' for n in ui())
 key(20) # next settings row
 focused=next((n.get('text') for n in ui() if n.get('focused')=='true'),None)
 assert focused and '字号' in focused, 'D-pad did not move to text-size row'
@@ -69,7 +69,7 @@ key(4)
 tap('全部应用')
 capture('apps')
 nodes=ui()
-assert any(n.get('text')=='全部应用' and n.get('clickable')=='false' for n in nodes)
+assert any(n.get('content-desc')=='菜单：全部应用' for n in nodes)
 assert any(n.get('focused')=='true' and n.get('clickable')=='true' for n in nodes)
 key(22)
 assert any(n.get('focused')=='true' and n.get('clickable')=='true' for n in ui())
