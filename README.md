@@ -14,7 +14,7 @@
 
 ## 安装
 
-下载发布页的 APK，通过电视本地安装或 ADB 安装：
+从 [v1.0.0 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.0.0) 下载 APK，通过电视本地安装或 ADB 安装：
 
 ```sh
 adb connect <电视IP>:5555
