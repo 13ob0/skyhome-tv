@@ -15,13 +15,13 @@
 
 ## 安装
 
-当前源码为 1.1.0，采用下沿展开的文字界面；公开下载仍为下方的 1.0.0 测试版。构建当前源码会生成 `skyhome-v1.1.0.apk`。
+当前版本为 1.1.0，采用下沿展开的文字界面。
 
-从 [v1.0.0 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.0.0) 下载 APK，通过电视本地安装或 ADB 安装：
+从 [v1.1.0 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.1.0) 下载 APK，通过电视本地安装或 ADB 安装：
 
 ```sh
 adb connect <电视IP>:5555
-adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.0.0.apk
+adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.1.0.apk
 adb -s <电视IP>:5555 shell am start -n tv.skyhome/.MainActivity
 ```
 
