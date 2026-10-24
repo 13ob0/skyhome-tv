@@ -220,6 +220,9 @@ public class MainActivity extends Activity {
             TextView add=button("添加常用应用  +",()->showApps(true));add.setTag("add-favorite");
             list.addView(add,new LinearLayout.LayoutParams(-1,dp(48)));firstHome=add;
         }
+        // Leave the favorites list through its explicit entry, regardless of row width.
+        View allApps=home.findViewWithTag("tool0");
+        list.getChildAt(list.getChildCount()-1).setNextFocusDownId(allApps.getId());
         int count=Math.max(1,favorites.size()), row=dp(48), gap=dp(3), padding=dp(6)*2;
         int available=getResources().getDisplayMetrics().heightPixels-contentTop()-dp(120)-dp(34);
         int visible=Math.min(count,Math.max(1,(available-padding+gap)/(row+gap)));
@@ -500,7 +503,7 @@ public class MainActivity extends Activity {
         row(c,"返回上一级",this::closePanel);
     }
     private void showAbout() {
-        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.1 · 原生文字桌面",false,this::showAbout);
+        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.2 · 原生文字桌面",false,this::showAbout);
         row(c,"设备信息与使用说明",this::showInfo);
         row(c,"许可与照片署名",this::showLicenses);
         row(c,"返回上一级",this::closePanel);

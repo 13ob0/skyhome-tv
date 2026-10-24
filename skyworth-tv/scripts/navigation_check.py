@@ -10,6 +10,7 @@ parser=argparse.ArgumentParser()
 parser.add_argument('--adb',default='adb')
 parser.add_argument('--serial',required=True)
 parser.add_argument('--out',type=Path,required=True)
+parser.add_argument('--home-focus-only',action='store_true',help='Only check favorites-to-footer focus navigation')
 args=parser.parse_args()
 out=args.out;out.mkdir(parents=True,exist_ok=True)
 base=[args.adb,'-s',args.serial]
@@ -53,6 +54,32 @@ run('shell','am','start','-a','android.intent.action.MAIN','-c','android.intent.
 assert focused() is not None
 anchor=list(map(int,re.findall(r'\d+',next(n for n in nodes() if n.get('text')=='常 用 应 用').get('bounds'))))
 shot('home');passed('PASS home with remote focus')
+# The last favorite must enter the footer at All Apps, not its geometric neighbor.
+key(19,12)
+home_tree=nodes()
+favorite_scroll=next(n for n in home_tree if n.get('class')=='android.widget.ScrollView')
+visible_favorites=[n.get('text') for n in favorite_scroll.iter('node') if n.get('focusable')=='true']
+assert visible_favorites and focused().get('text')==visible_favorites[0]
+path=[visible_favorites[0]]
+favorite_nodes={id(n) for n in favorite_scroll.iter('node')}
+footer_labels={'全部应用','信号源','投屏','原桌面','设置'}
+footer={(n.get('text'),n.get('bounds')) for n in home_tree if id(n) not in favorite_nodes and n.get('text') in footer_labels and n.get('clickable')=='true'}
+for step in range(12):
+    key(20);candidate=focused();label=candidate.get('text')
+    if (label,candidate.get('bounds')) in footer:
+        assert label=='全部应用', 'Last favorite moved to '+label
+        break
+    path.append(label)
+else:
+    raise AssertionError('Could not leave favorites list')
+assert path[:len(visible_favorites)]==visible_favorites, (path,visible_favorites)
+shot('favorites-to-all-apps')
+key(22);assert focused().get('text')=='信号源'
+key(21);assert focused().get('text')=='全部应用'
+passed('PASS favorites order and last-favorite Down -> All Apps; footer Left/Right unchanged')
+if args.home_focus_only:
+    (out/'results.txt').write_text('\n'.join(results)+'\n')
+    print('Home focus verification complete.');raise SystemExit(0)
 key(82)
 check_center('设置')
 assert focused().get('text').startswith('背景')
