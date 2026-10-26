@@ -41,6 +41,11 @@ def tap(text):
 anchor=None
 def check_center(title):
     tree=nodes()
+    assert not any(n.get('text') in ('山岚','SKYHOME') for n in tree), 'Brand remains visible inside a menu'
+    crumb=next(n for n in tree if n.get('text','').startswith('首页 / '))
+    crumb_bounds=list(map(int,re.findall(r'\d+',crumb.get('bounds'))))
+    assert abs(crumb_bounds[1]-round(screen_height*.085))<=1,crumb.attrib
+    assert not any(any(hint in n.get('text','') for hint in ('返回键回到上一级','上下键滚动阅读','长按应用编辑常用与顺序')) for n in tree), 'Obsolete operation hint'
     current=next(n for n in tree if n.get('content-desc')=='菜单：'+title)
     bounds=list(map(int,re.findall(r'\d+',current.get('bounds'))))
     assert bounds[0]==anchor[0], (title,bounds,anchor)
@@ -130,13 +135,14 @@ key(19);assert focused().get('text')==first
 key(20,30);bottom=focused();assert bottom is not None
 shot('apps-bottom');passed('PASS grid D-pad navigation and top/bottom boundaries')
 run('shell','input','keyevent','--longpress','23');time.sleep(.5)
-assert any(n.get('text')=='常用应用管理' or '常用应用管理' in n.get('text','') for n in nodes())
+assert any(n.get('text')=='打开应用' and n.get('clickable')=='true' for n in nodes())
 shot('app-actions')
 key(4)
 assert focused().get('text')==bottom.get('text')
 passed('PASS grid long press and return to selected application')
 run('shell','am','start','-a','android.intent.action.MAIN','-c','android.intent.category.HOME','-n','tv.skyhome/.MainActivity');time.sleep(.5)
 assert any(n.get('text')=='全部应用' and n.get('clickable')=='true' for n in nodes())
+assert {'山岚','SKYHOME'}.issubset({n.get('text') for n in nodes()}), 'Home brand not restored'
 shot('home-final');passed('PASS HOME intent clears all menus')
 log=run('logcat','-d','-t','200','AndroidRuntime:E','*:S').decode(errors='replace')
 (out/'android-runtime.txt').write_text(log)

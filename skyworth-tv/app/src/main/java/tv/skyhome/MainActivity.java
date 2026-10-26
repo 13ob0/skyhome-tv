@@ -23,6 +23,7 @@ public class MainActivity extends Activity {
         MenuPosition(MenuPage page){focusTag=page.focusTag;scrollY=page.scrollY;}
     }
     private TextView breadcrumb, menuHint;
+    private LinearLayout brand;
     private ParentMenuView parentEcho;
     private static final class MenuPage {
         String key, title, subtitle, focusTag;
@@ -34,7 +35,7 @@ public class MainActivity extends Activity {
         final List<TextView> actions = new ArrayList<>();
     }
     private ImageView photo;
-    private TextView clock, date, caption;
+    private TextView clock, date;
     private HomePreferences prefs;
     private List<DeviceActions.AppEntry> apps = new ArrayList<>();
     private List<String> favorites = new ArrayList<>();
@@ -172,9 +173,15 @@ public class MainActivity extends Activity {
         home=new FrameLayout(this); root.addView(home,full());
         int marginPx=screenMargin();
         int margin=Math.round(marginPx/getResources().getDisplayMetrics().density);
-        TextView brand=text("山 岚  /  SKYHOME",14,GREEN); brand.setLetterSpacing(.12f);
+        brand=vertical();
+        brand.setVisibility(panel==null?View.VISIBLE:View.INVISIBLE);
+        TextView brandName=text("山岚",18,0xffc2ceca); brandName.setLetterSpacing(.22f);
+        brand.addView(brandName,new LinearLayout.LayoutParams(-2,-2));
+        TextView brandEnglish=text("SKYHOME",8,0xff94a8a3); brandEnglish.setLetterSpacing(.30f);
+        LinearLayout.LayoutParams englishParams=new LinearLayout.LayoutParams(-2,-2);englishParams.topMargin=dp(7);
+        brand.addView(brandEnglish,englishParams);
         FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
-        bp.setMargins(dp(margin),dp(34),0,0); home.addView(brand,bp);
+        bp.setMargins(dp(margin),Math.round(getResources().getDisplayMetrics().heightPixels*.085f),0,0); home.addView(brand,bp);
         LinearLayout time=vertical(); time.setGravity(Gravity.RIGHT);
         clock=text("",58,WHITE); clock.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
         clock.setSingleLine(true);
@@ -195,10 +202,6 @@ public class MainActivity extends Activity {
         }
         FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.LEFT);
         fp.setMargins(dp(margin),0,0,dp(48)); homeBody.addView(footer,fp);
-        TextView help=text("方向键选择 · 确认打开 · 长按编辑常用 · 菜单键设置",12,MUTED);
-        FrameLayout.LayoutParams hp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.LEFT);hp.setMargins(dp(margin),0,0,dp(20));help.setTag("homeHelp");homeBody.addView(help,hp);
-        caption=text(HomePreferences.NAMES[currentWallpaper],12,MUTED);
-        FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.RIGHT);cp.setMargins(0,0,dp(margin),dp(20));home.addView(caption,cp);
 
         buildList();
         buildingHome=false;
@@ -206,7 +209,7 @@ public class MainActivity extends Activity {
     }
     private void buildList() {
         LinearLayout area=vertical();
-        TextView eyebrow=text("常 用 应 用",13,GREEN);eyebrow.setPadding(dp(3),0,0,0);
+        TextView eyebrow=text("常 用 应 用",16,GREEN);eyebrow.setPadding(dp(3),0,0,0);
         area.addView(eyebrow,new LinearLayout.LayoutParams(-1,dp(34)));
         ScrollView scroll=new ScrollView(this);scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
         scroll.setFocusable(false);scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
@@ -246,7 +249,6 @@ public class MainActivity extends Activity {
     }
     private void loadWallpaper() {
         final int generation=++photoGeneration, index=currentWallpaper;
-        if(caption!=null)caption.setText(HomePreferences.NAMES[index]);
         if(index>=5) { photo.setImageDrawable(null); return; }
         worker.execute(()-> {
             Bitmap bitmap=null;
@@ -269,7 +271,7 @@ public class MainActivity extends Activity {
     }
 
     private void showSources() {
-        LinearLayout content=sheet("sources","信号源","选择电视输入",false,this::showSources);
+        LinearLayout content=sheet("sources","信号源","",false,this::showSources);
         MenuPage page=topPage();
         int request=++sourceRequest;
         TextView status=text("正在读取信号源…",18,MUTED);
@@ -287,7 +289,7 @@ public class MainActivity extends Activity {
                     row(content,"重新读取",this::showSources);
                 } else {
                     for(TvSources.Source source:snapshot.sources) {
-                        TextView item=row(content,source.label+(source.same(snapshot.current)?" · 当前":""),
+                        TextView item=row(content,source.label,
                                 ()->selectSource(source,page));
                         item.setTag(source.key());
                     }
@@ -308,6 +310,7 @@ public class MainActivity extends Activity {
         page.focusTag=source.key();
         for(TextView item:page.actions)item.setEnabled(false);
         menuHint.setText("正在切换到 "+source.label+"…");
+        menuHint.setVisibility(View.VISIBLE);
         worker.execute(()->{
             boolean switched=false;
             try { switched=TvSources.select(getApplicationContext(),source); } catch(RuntimeException ignored) { }
@@ -336,8 +339,9 @@ public class MainActivity extends Activity {
         rememberPage(topPage());
         if(panel==null) {
             rememberHome();handler.removeCallbacks(cycle);
+            brand.setVisibility(View.INVISIBLE);
             panel=new FrameLayout(this);panel.setClickable(true);panel.setClipChildren(true);root.addView(panel,full());
-            breadcrumb=text("",12,MUTED);panel.addView(breadcrumb);
+            breadcrumb=text("",18,0xffc2ceca);panel.addView(breadcrumb);
             menuHint=text("",12,MUTED);panel.addView(menuHint);
             parentEcho=new ParentMenuView(this);panel.addView(parentEcho);
         }
@@ -433,9 +437,10 @@ public class MainActivity extends Activity {
         StringBuilder path=new StringBuilder("首页");
         for(MenuPage page:pages)path.append(" / ").append(page.title);
         breadcrumb.setText(path);breadcrumb.setSingleLine(true);breadcrumb.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(width-margin*2,dp(25));
-        bp.leftMargin=margin;bp.topMargin=dp(120);breadcrumb.setLayoutParams(bp);
-        menuHint.setText(topPage().subtitle+"  ·  返回键回到上一级");menuHint.setSingleLine(true);menuHint.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(Math.max(dp(120),width-margin*2-dp(330)),dp(32));
+        bp.leftMargin=margin;bp.topMargin=Math.round(height*.085f);breadcrumb.setLayoutParams(bp);
+        menuHint.setText(topPage().subtitle);menuHint.setVisibility(topPage().subtitle.isEmpty()?View.GONE:View.VISIBLE);
+        menuHint.setSingleLine(true);menuHint.setEllipsize(android.text.TextUtils.TruncateAt.END);
         FrameLayout.LayoutParams hp=new FrameLayout.LayoutParams(Math.round(width*.73f)-margin,dp(24),Gravity.BOTTOM|Gravity.LEFT);
         hp.leftMargin=margin;hp.bottomMargin=dp(25);menuHint.setLayoutParams(hp);
         root.bringChildToFront(panel);
@@ -473,7 +478,8 @@ public class MainActivity extends Activity {
     private void closeAllPanels() {
         if(panel!=null)root.removeView(panel);
         panel=null;parentEcho=null;pages.clear();menuPositions.clear();
-        highlightHome(homeBody,false);homeBody.setAlpha(1f);homeBody.findViewWithTag("homeHelp").setVisibility(View.VISIBLE);homeBody.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        brand.setVisibility(View.VISIBLE);
+        highlightHome(homeBody,false);homeBody.setAlpha(1f);homeBody.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         homeBody.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         restoreHomeFocus();priorFocus=null;scheduleCycle();
     }
@@ -484,7 +490,7 @@ public class MainActivity extends Activity {
     }
     private void showApps(boolean edit) {
         refreshApps();
-        LinearLayout content=sheet(edit?"edit-apps":"apps",edit?"编辑常用应用":"全部应用",edit?"确认添加或移除 · 最多 9 项 · 已选 "+favorites.size()+" 项":"长按应用编辑常用与顺序",true,()->showApps(edit));
+        LinearLayout content=sheet(edit?"edit-apps":"apps",edit?"编辑常用应用":"全部应用",edit?"最多 9 项 · 已选 "+favorites.size()+" 项":"",true,()->showApps(edit));
         MenuPage page=topPage();LinearLayout gridRow=null;
         for(int i=0;i<apps.size();i++) {
             DeviceActions.AppEntry app=apps.get(i);
@@ -508,7 +514,7 @@ public class MainActivity extends Activity {
         prefs.saveFavorites(favorites);buildHome();
     }
     private void showFavoriteActions(String pkg) {
-        LinearLayout content=sheet("favorite:"+pkg,label(pkg),"常用应用管理",false,()->showFavoriteActions(pkg));
+        LinearLayout content=sheet("favorite:"+pkg,label(pkg),"",false,()->showFavoriteActions(pkg));
         row(content,"打开应用",()->openApp(pkg));
         boolean selected=favorites.contains(pkg);
         row(content,selected?"从常用移除":"添加到常用",()->{toggleFavorite(pkg);closePanel();});
@@ -525,7 +531,7 @@ public class MainActivity extends Activity {
         showFavoriteActions(pkg);
     }
     private void showSettings() {
-        LinearLayout c=sheet("settings","设置","所有偏好保存在本机",false,this::showSettings);
+        LinearLayout c=sheet("settings","设置","",false,this::showSettings);
         row(c,"背景 · "+HomePreferences.NAMES[prefs.wallpaper()],this::showWallpapers);
         row(c,"字号 · "+new String[]{"标准","大","特大"}[prefs.size()],()-> {
             prefs.put("size",(prefs.size()+1)%3);buildHome();showSettings();focusRow(1);
@@ -545,7 +551,7 @@ public class MainActivity extends Activity {
         page.view.post(()-> {if(topPage()==page){View target=page.content.findViewWithTag(page.focusTag);if(target!=null)target.requestFocus();}});
     }
     private void showWallpapers() {
-        LinearLayout c=sheet("background","背景","选择即保存 · 轮播仅在首页前台运行",false,this::showWallpapers);
+        LinearLayout c=sheet("background","背景","",false,this::showWallpapers);
         row(c,"自动轮播 · "+(prefs.interval()==0?"关闭":prefs.interval()+" 分钟"),()-> {
             int index=0;for(int i=0;i<HomePreferences.INTERVALS.length;i++)if(HomePreferences.INTERVALS[i]==prefs.interval())index=i;
             prefs.put("interval",HomePreferences.INTERVALS[(index+1)%HomePreferences.INTERVALS.length]);showWallpapers();
@@ -565,7 +571,7 @@ public class MainActivity extends Activity {
         row(c,"返回上一级",this::closePanel);
     }
     private void showInfo() {
-        LinearLayout c=sheet("info","设备信息与使用说明","上下键滚动阅读",false,this::showInfo);
+        LinearLayout c=sheet("info","设备信息与使用说明","",false,this::showInfo);
         TextView body=text("设备："+Build.MANUFACTURER+" / "+Build.MODEL+"\nAndroid "+Build.VERSION.RELEASE+" · API "+Build.VERSION.SDK_INT
                 +"\n\n创维信号源从系统读取端口，通过文字菜单切换；也可打开系统菜单。\n可通过系统将山岚设为默认桌面；Home 键返回首页。开机入口由电视系统决定。"
                 +"\n\n离线运行，无账号、无广告。\nHome 兼容可选辅助功能服务，不获取屏幕内容。\n基于归藏电视的产品思路重新编写。参考项目：github.com/op7418/guizang-tv（MIT）。"
@@ -573,7 +579,7 @@ public class MainActivity extends Activity {
         body.setLineSpacing(dp(5),1);body.setPadding(dp(8),dp(6),dp(8),dp(20));c.addView(body);
     }
     private void showLicenses() {
-        LinearLayout c=sheet("licenses","许可与照片署名","上下键滚动阅读 · MIT 与 Unsplash 许可",false,this::showLicenses);
+        LinearLayout c=sheet("licenses","许可与照片署名","",false,this::showLicenses);
         StringBuilder value=new StringBuilder();
         for(String path:new String[]{"LICENSE.txt","wallpapers/UNSPLASH-NOTICE.txt"}) {
             try(BufferedReader reader=new BufferedReader(new InputStreamReader(getAssets().open(path),"UTF-8"))) {
@@ -617,7 +623,7 @@ public class MainActivity extends Activity {
     }
     @Override public void onBackPressed() {
         if(panel!=null){closePanel();return;}
-        LinearLayout c=sheet("exit","离开山岚","选择要返回的位置",false,this::onBackPressed);
+        LinearLayout c=sheet("exit","离开山岚","",false,this::onBackPressed);
         row(c,"继续使用山岚",this::closePanel);
         row(c,"打开创维原桌面",()->notifyResult(DeviceActions.stockHome(this),"原桌面暂时无法打开"));
         row(c,"退出应用",this::finish);
