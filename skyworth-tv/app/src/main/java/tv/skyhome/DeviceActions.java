@@ -34,8 +34,13 @@ final class DeviceActions {
     }
     static boolean sources(Context c) {
         // SWITCH_SOURCE in softsettings selects a broadcast licence, not an HDMI input.
-        if (isSkyworth() && launch(c, new Intent("coocaa.intent.action.SOURCE_DIALOG")
-                .setPackage("com.tianci.movieplatform"))) return true;
+        if (isSkyworth()) {
+            // The vendor chooser creates stock desktop windows during initialization.
+            HomeKeyService.allowStockLaunch(c);
+            if(launch(c, new Intent("coocaa.intent.action.SOURCE_DIALOG")
+                    .setPackage("com.tianci.movieplatform")))return true;
+            HomeKeyService.cancelStockLaunch(c);
+        }
         return launch(c, new Intent("android.settings.TV_INPUT_SETTINGS"));
     }
     static boolean settings(Context c) {

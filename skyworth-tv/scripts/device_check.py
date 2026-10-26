@@ -76,12 +76,19 @@ assert any(n.get('focused')=='true' and n.get('clickable')=='true' for n in ui()
 results.append('PASS all-apps grid and D-pad movement')
 key(4)
 tap('信号源')
+source_labels={n.get('text','').split(' · ')[0] for n in ui()}
+assert {'HDMI1','HDMI2','系统信号源菜单'}.issubset(source_labels),source_labels
+assert any(n.get('content-desc')=='菜单：信号源' for n in ui())
+capture('source-text')
+results.append('PASS SkyHome text source menu')
+tap('系统信号源菜单')
 state=resumed()
 assert 'com.ccos.cooui.homepage.tvsource.SourceDialogActivity' in state,state
 source_labels={n.get('text') for n in ui()}
 assert {'HDMI1','HDMI2'}.issubset(source_labels),source_labels
 capture('source')
 results.append('PASS Skyworth source chooser: '+state)
+adb('shell','am','start','-a','android.intent.action.MAIN','-c','android.intent.category.HOME','-n','tv.skyhome/.MainActivity')
 start()
 tap('原桌面')
 state=resumed()

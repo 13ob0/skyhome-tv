@@ -42,6 +42,8 @@ public class MainActivity extends Activity {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private int currentWallpaper, photoGeneration;
     private boolean active, buildingHome;
+    private int sourceRequest;
+    private boolean sourceSwitching;
     private String homeFocus = "";
     private View firstHome, priorFocus;
     private View heldCenterView;
@@ -101,6 +103,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(clockTick); clockTick.run();
         refreshApps();
         if (panel == null) buildHome();
+        else if(topPage()!=null && "sources".equals(topPage().key) && !sourceSwitching)showSources();
         scheduleCycle();
     }
     @Override protected void onNewIntent(Intent intent) {
@@ -182,7 +185,7 @@ public class MainActivity extends Activity {
         homeBody=new FrameLayout(this);home.addView(homeBody,full());
         LinearLayout footer=new LinearLayout(this); footer.setGravity(Gravity.CENTER_VERTICAL);
         String[] titles={"全部应用","信号源","投屏","原桌面","设置"};
-        Runnable[] actions={()->showApps(false),()->notifyResult(DeviceActions.sources(this),"信号源入口不可用，请使用遥控器信号源键"),
+        Runnable[] actions={()->showApps(false),this::showSources,
                 ()->notifyResult(DeviceActions.cast(this),"未找到可用的投屏应用"),()->notifyResult(DeviceActions.stockHome(this),"原桌面暂时无法打开"),this::showSettings};
         firstHome=null;
         for(int i=0;i<titles.length;i++) {
@@ -265,6 +268,59 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void showSources() {
+        LinearLayout content=sheet("sources","信号源","选择电视输入",false,this::showSources);
+        MenuPage page=topPage();
+        int request=++sourceRequest;
+        TextView status=text("正在读取信号源…",18,MUTED);
+        content.addView(status);
+        sourceFallbackRows(content);
+        worker.execute(()->{
+            TvSources.Snapshot result=null;
+            try { result=TvSources.read(getApplicationContext()); } catch(RuntimeException ignored) { }
+            final TvSources.Snapshot snapshot=result;
+            handler.post(()->{
+                if(isDestroyed() || request!=sourceRequest || topPage()!=page)return;
+                content.removeAllViews();page.actions.clear();
+                if(snapshot==null || snapshot.sources.isEmpty()) {
+                    content.addView(text("暂时无法读取信号源",18,MUTED));
+                    row(content,"重新读取",this::showSources);
+                } else {
+                    for(TvSources.Source source:snapshot.sources) {
+                        TextView item=row(content,source.label+(source.same(snapshot.current)?" · 当前":""),
+                                ()->selectSource(source,page));
+                        item.setTag(source.key());
+                    }
+                }
+                sourceFallbackRows(content);
+                layoutMenus(false);restorePage(page);
+            });
+        });
+    }
+    private void sourceFallbackRows(LinearLayout content) {
+        row(content,"系统信号源菜单",()->notifyResult(DeviceActions.sources(this),
+                "信号源入口不可用，请使用遥控器信号源键")).setTag("system-sources");
+        row(content,"返回上一级",this::closePanel).setTag("source-back");
+    }
+    private void selectSource(TvSources.Source source, MenuPage page) {
+        if(sourceSwitching)return;
+        sourceSwitching=true;
+        page.focusTag=source.key();
+        for(TextView item:page.actions)item.setEnabled(false);
+        menuHint.setText("正在切换到 "+source.label+"…");
+        worker.execute(()->{
+            boolean switched=false;
+            try { switched=TvSources.select(getApplicationContext(),source); } catch(RuntimeException ignored) { }
+            final boolean success=switched;
+            handler.post(()->{
+                sourceSwitching=false;
+                if(isDestroyed())return;
+                if(!success)Toast.makeText(this,"未能确认切换到 "+source.label+"，请重试或使用系统菜单",Toast.LENGTH_LONG).show();
+                if(active && topPage()==page)showSources();
+                else for(TextView item:page.actions)item.setEnabled(true);
+            });
+        });
+    }
     private MenuPage topPage() { return pages.isEmpty()?null:pages.get(pages.size()-1); }
     private void rememberPage(MenuPage page) {
         if(page==null || !page.view.hasFocus())return;
@@ -503,7 +559,7 @@ public class MainActivity extends Activity {
         row(c,"返回上一级",this::closePanel);
     }
     private void showAbout() {
-        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.3 · 原生文字桌面",false,this::showAbout);
+        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.4 · 原生文字桌面",false,this::showAbout);
         row(c,"设备信息与使用说明",this::showInfo);
         row(c,"许可与照片署名",this::showLicenses);
         row(c,"返回上一级",this::closePanel);
@@ -511,7 +567,7 @@ public class MainActivity extends Activity {
     private void showInfo() {
         LinearLayout c=sheet("info","设备信息与使用说明","上下键滚动阅读",false,this::showInfo);
         TextView body=text("设备："+Build.MANUFACTURER+" / "+Build.MODEL+"\nAndroid "+Build.VERSION.RELEASE+" · API "+Build.VERSION.SDK_INT
-                +"\n\n创维信号源通过系统选择面板打开；端口由系统管理。\n可通过系统将山岚设为默认桌面；Home 键返回首页。开机入口由电视系统决定。"
+                +"\n\n创维信号源从系统读取端口，通过文字菜单切换；也可打开系统菜单。\n可通过系统将山岚设为默认桌面；Home 键返回首页。开机入口由电视系统决定。"
                 +"\n\n离线运行，无账号、无广告。\nHome 兼容可选辅助功能服务，不获取屏幕内容。\n基于归藏电视的产品思路重新编写。参考项目：github.com/op7418/guizang-tv（MIT）。"
                 +"\n\n照片：Geio Tischler、Arina Avdzhian、Łukasz Rawa、Pascal Debrunner、Patrick Shaun / Unsplash。\n完整照片署名与参考项目许可随 APK 保存。",18,WHITE);
         body.setLineSpacing(dp(5),1);body.setPadding(dp(8),dp(6),dp(8),dp(20));c.addView(body);

@@ -8,7 +8,8 @@
 
 | 能力 | 调用路径 |
 | --- | --- |
-| 信号源 | 创维 `coocaa.intent.action.SOURCE_DIALOG`，限定 `com.tianci.movieplatform` |
+| 信号源（1.2.4） | `com.skyworth.tv.sdk.provider` 查询实际端口；`METHOD_GOTO_SOURCE` 切换并回读当前输入 |
+| 系统信号源菜单 | 创维 `coocaa.intent.action.SOURCE_DIALOG`，限定 `com.tianci.movieplatform` |
 | 信号源回退 | 标准 `android.settings.TV_INPUT_SETTINGS`，不可用时提示用户 |
 | 原桌面 | 创维 `coocaa.intent.action.HOME_MAIN`，限定 `com.tianci.movieplatform` |
 | 系统设置 | 标准 `android.settings.SETTINGS`，失败再尝试创维设置应用 |
@@ -16,7 +17,11 @@
 
 每次启动先解析 Activity，检查 exported、启用状态及调用权限；捕获无入口和权限异常，以文字提示回退。未复用小米的内部 HDMI 参数，也不写入系统厂商属性。
 
-本机 `dumpsys tv_input` 未公开标准输入列表，因此只提供系统信号源选择，不宣称 HDMI 1/2 直达。系统选择面板负责显示和选择实际输入。
+本机 `dumpsys tv_input` 的标准输入列表为空。1.2.4 改用系统菜单实际使用的创维 Provider 协议：查询 `system/source_list`、`system/current_source` 必须传非空 projection；列为 `sourceName`、`sourceIndex`、`displayName`。向 `method` 调用 `METHOD_GOTO_SOURCE`，Bundle 为 `name`、`index`、`flag=0`，返回 `ret` 后再轮询当前输入确认异步切换。本机 HDMI1 为 `HDMI / 0`、HDMI2 为 `HDMI / 1`；应用从返回列表获取映射，不硬编码端口。
+
+Provider 在本机已导出，未声明组件调用权限；无额外权限的验证应用和山岚菜单均已完成 HDMI1/2 切换。其他型号需分别验证；读取失败或为空时显示重试与系统菜单入口。未解读或展示信号连接状态。
+
+系统菜单初始化会产生原桌面窗口事件；打开时复用手动原桌面的 1.5 秒初始化放行，避免 Home 兼容服务将其立即拉回。全局按键过滤继续关闭。
 
 注意：`com.coocaa.os.softsettings` 的 `SWITCH_SOURCE` / `SwitchSourceActivity` 在本机实际是播控牌照调试页，不能用作 HDMI 信号源入口。
 
