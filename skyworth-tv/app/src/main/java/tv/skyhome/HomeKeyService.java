@@ -1,20 +1,23 @@
 package tv.skyhome;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 import android.os.SystemClock;
-import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
-/** HOME compatibility: key filtering plus two exact vendor desktop window classes. */
+/** HOME compatibility using only known vendor desktop window classes. */
 public final class HomeKeyService extends AccessibilityService {
-    @Override protected boolean onKeyEvent(KeyEvent event) {
-        if(event.getKeyCode()!=KeyEvent.KEYCODE_HOME)return false;
-        if(event.getAction()==KeyEvent.ACTION_UP && !event.isCanceled())goHome();
-        return true;
+    @Override protected void onServiceConnected() {
+        // Some TV firmware caches the old XML flags across an APK update.
+        AccessibilityServiceInfo info=getServiceInfo();
+        if(info!=null) {
+            info.flags &= ~AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
+            setServiceInfo(info);
+        }
     }
     private void goHome() {
         Intent home=new Intent(Intent.ACTION_MAIN)

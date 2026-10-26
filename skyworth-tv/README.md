@@ -17,7 +17,7 @@
 
 ```sh
 adb connect <电视IP>:5555
-adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.2.apk
+adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.3.apk
 adb -s <电视IP>:5555 shell am start -n tv.skyhome/.MainActivity
 ```
 

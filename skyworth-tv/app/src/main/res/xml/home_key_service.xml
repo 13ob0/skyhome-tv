@@ -3,8 +3,7 @@
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:packageNames="com.skyworth.officehomepage,com.tianci.movieplatform"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRequestFilterKeyEvents"
-    android:canRequestFilterKeyEvents="true"
+    android:canRequestFilterKeyEvents="false"
     android:canRetrieveWindowContent="false"
     android:notificationTimeout="0"
     android:settingsActivity="tv.skyhome.MainActivity" />

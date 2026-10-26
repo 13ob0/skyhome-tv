@@ -15,13 +15,13 @@
 
 ## 安装
 
-当前源码为 1.2.2，修正常用列表末项向下的焦点跳转；下方公开下载仍为 1.2.1 测试版。
+当前版本为 1.2.3，修复实体遥控器音量加减后持续调节的问题，并包含常用列表末项向下进入「全部应用」的焦点修正。
 
-从 [v1.2.1 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.2.1) 下载 APK，通过电视本地安装或 ADB 安装：
+从 [v1.2.3 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.2.3) 下载 APK，通过电视本地安装或 ADB 安装：
 
 ```sh
 adb connect <电视IP>:5555
-adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.1.apk
+adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.3.apk
 adb -s <电视IP>:5555 shell am start -n tv.skyhome/.MainActivity
 ```
 

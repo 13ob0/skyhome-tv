@@ -503,7 +503,7 @@ public class MainActivity extends Activity {
         row(c,"返回上一级",this::closePanel);
     }
     private void showAbout() {
-        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.2 · 原生文字桌面",false,this::showAbout);
+        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.3 · 原生文字桌面",false,this::showAbout);
         row(c,"设备信息与使用说明",this::showInfo);
         row(c,"许可与照片署名",this::showLicenses);
         row(c,"返回上一级",this::closePanel);
