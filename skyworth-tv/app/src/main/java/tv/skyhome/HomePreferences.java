@@ -6,7 +6,7 @@ import org.json.JSONException;
 import java.util.*;
 
 final class HomePreferences {
-    static final int MAX_FAVORITES = 9;
+    static final int MAX_FAVORITES = 5;
     static final String[] FILES = {"hqzyUL3M21k.jpg", "rSYsP5TlEAk.jpg", "4axNezh03UA.jpg", "vwFvhJf6u_I.jpg", "JtF_FvXVQQI.jpg"};
     static final String[] NAMES = {"雨林山路", "雾中雪岭", "热带绿叶", "山间彩虹", "流光花影", "静谧深色"};
     static final int[] INTERVALS = {0, 1, 5, 15, 30};
@@ -41,5 +41,9 @@ final class HomePreferences {
         } catch (JSONException ignored) { }
         return result;
     }
-    void saveFavorites(List<String> list) { prefs.edit().putString("favorites", new JSONArray(list).toString()).apply(); }
+    void saveFavorites(List<String> list) {
+        // Reading an older list never rewrites it; an explicit edit saves the new five-item limit.
+        List<String> limited = new ArrayList<>(list.subList(0, Math.min(MAX_FAVORITES, list.size())));
+        prefs.edit().putString("favorites", new JSONArray(limited).toString()).apply();
+    }
 }

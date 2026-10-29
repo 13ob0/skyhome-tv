@@ -223,7 +223,7 @@ public class MainActivity extends Activity {
         LinearLayout area=vertical();
         TextView eyebrow=text("常 用 应 用",20,GREEN);eyebrow.setPadding(dp(3),0,0,0);
         area.addView(eyebrow,new LinearLayout.LayoutParams(-1,dp(34)));
-        ScrollView scroll=new ScrollView(this);scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
+        ScrollView scroll=new RailScrollView(this);scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
         scroll.setFocusable(false);scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);scroll.setFillViewport(false);
         LinearLayout list=vertical();list.setPadding(dp(3),dp(6),dp(3),dp(6));
@@ -253,12 +253,19 @@ public class MainActivity extends Activity {
             tool.setNextFocusDownId(homeFavorites.get(0).getId());
         }
         int count=Math.max(1,favorites.size()), row=homeRowHeight(), gap=dp(3), padding=dp(6)*2;
-        int available=getResources().getDisplayMetrics().heightPixels-contentTop()-dp(48)-footerHeight()-dp(8)-dp(34);
-        int visible=Math.min(count,Math.max(1,(available-padding+gap)/(row+gap)));
+        int height=getResources().getDisplayMetrics().heightPixels;
+        int footerTop=height-dp(48)-footerHeight(), titleHeight=dp(34);
+        // Move the whole home list up before reducing its capacity. Keep clear of the brand.
+        int minimumTop=Math.round(height*.085f)+dp(60);
+        int available=footerTop-dp(16)-titleHeight-minimumTop;
+        int capacity=Math.min(HomePreferences.MAX_FAVORITES,Math.max(1,(available-padding+gap)/(row+gap)));
+        int reserved=capacity*row+(capacity-1)*gap+padding;
+        int listTop=Math.max(minimumTop,Math.min(contentTop(),footerTop-dp(16)-titleHeight-reserved));
+        int visible=Math.min(count,capacity);
         int viewport=visible*row+(visible-1)*gap+padding;
         scroll.addView(list);area.addView(scroll,new LinearLayout.LayoutParams(-1,viewport));
         FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(Math.min(dp(460),getResources().getDisplayMetrics().widthPixels-screenMargin()*2),-2,Gravity.TOP|Gravity.LEFT);
-        ap.leftMargin=screenMargin();ap.topMargin=contentTop();homeBody.addView(area,ap);
+        ap.leftMargin=screenMargin();ap.topMargin=listTop;homeBody.addView(area,ap);
     }
     private void restoreHomeFocus() {
         View match=home.findViewWithTag(homeFocus);
@@ -378,7 +385,7 @@ public class MainActivity extends Activity {
             page=new MenuPage();page.key=key;page.view=vertical();page.view.setClipChildren(true);
             MenuPosition position=menuPositions.get(key);
             if(position!=null){page.focusTag=position.focusTag;page.scrollY=position.scrollY;}
-            page.scroll=new ScrollView(this);page.scroll.setVerticalScrollBarEnabled(false);
+            page.scroll=new RailScrollView(this);page.scroll.setVerticalScrollBarEnabled(false);
             page.scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);page.scroll.setFillViewport(false);
             page.scroll.setFocusable(false);page.scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             page.content=vertical();page.content.setPadding(dp(3),dp(6),dp(3),dp(6));
@@ -443,8 +450,9 @@ public class MainActivity extends Activity {
             page.scroll.setFocusable(current&&page.reading);page.scroll.setFocusableInTouchMode(current&&page.reading);
             if(!current)continue;
             int columnWidth=width-margin*2,padding=dp(6)*2;
+            int contentWidth=columnWidth-page.scroll.getPaddingLeft()-page.scroll.getPaddingRight();
             int maximum=Math.max(dp(94),Math.min(Math.round(height*.64f),height-dp(240)));
-            page.content.measure(View.MeasureSpec.makeMeasureSpec(columnWidth,View.MeasureSpec.EXACTLY),
+            page.content.measure(View.MeasureSpec.makeMeasureSpec(contentWidth,View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));
             int needed=page.content.getMeasuredHeight(),columnHeight=Math.min(needed,maximum);
             if(!page.reading&&needed>maximum) {
@@ -513,7 +521,7 @@ public class MainActivity extends Activity {
     }
     private void showApps(boolean edit) {
         refreshApps();
-        LinearLayout content=sheet(edit?"edit-apps":"apps",edit?"编辑常用应用":"全部应用",edit?"最多 9 项 · 已选 "+favorites.size()+" 项":"",true,()->showApps(edit));
+        LinearLayout content=sheet(edit?"edit-apps":"apps",edit?"编辑常用应用":"全部应用",edit?"最多 "+HomePreferences.MAX_FAVORITES+" 项 · 已选 "+favorites.size()+" 项":"",true,()->showApps(edit));
         MenuPage page=topPage();LinearLayout gridRow=null;
         for(int i=0;i<apps.size();i++) {
             DeviceActions.AppEntry app=apps.get(i);
@@ -533,7 +541,7 @@ public class MainActivity extends Activity {
     private void toggleFavorite(String pkg) {
         if(favorites.contains(pkg))favorites.remove(pkg);
         else if(favorites.size()<HomePreferences.MAX_FAVORITES)favorites.add(pkg);
-        else {Toast.makeText(this,"最多 9 项，请先移除一项",Toast.LENGTH_SHORT).show();return;}
+        else {Toast.makeText(this,"最多 "+HomePreferences.MAX_FAVORITES+" 项，请先移除一项",Toast.LENGTH_SHORT).show();return;}
         prefs.saveFavorites(favorites);buildHome();
     }
     private void showFavoriteActions(String pkg) {
@@ -562,7 +570,7 @@ public class MainActivity extends Activity {
         row(c,"屏幕边距 · "+new String[]{"紧凑","标准","宽"}[prefs.inset()],()-> {
             prefs.put("inset",(prefs.inset()+1)%3);buildHome();showSettings();focusRow(2);
         });
-        row(c,"编辑常用 · "+favorites.size()+" / 9",()->showApps(true));
+        row(c,"编辑常用 · "+favorites.size()+" / "+HomePreferences.MAX_FAVORITES,()->showApps(true));
         row(c,"Home 键兼容 · "+(HomeKeyService.isEnabled(this)?"已开启":"未开启"),()->
                 notifyResult(DeviceActions.launch(this,new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)),"请在系统辅助功能中管理山岚 Home 键返回服务"));
         row(c,"系统设置",()->notifyResult(DeviceActions.settings(this),"系统设置入口不可用"));
