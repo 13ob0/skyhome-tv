@@ -31,7 +31,8 @@ def nodes():
             time.sleep(.8)
 def focused():return next((n for n in nodes() if n.get('focused')=='true'),None)
 def shot(name):
-    raw=run('exec-out','screencap','-p');(out/(name+'.png')).write_bytes(raw[raw.index(b'\x89PNG'):])
+    run('shell','screencap','-p','/sdcard/skyhome-navigation.png')
+    run('pull','/sdcard/skyhome-navigation.png',str(out/(name+'.png')))
 def tap(text):
     n=next(n for n in nodes() if n.get('text')==text and n.get('clickable')=='true')
     x1,y1,x2,y2=map(int,re.findall(r'\d+',n.get('bounds')))
@@ -60,7 +61,11 @@ assert focused() is not None
 anchor=list(map(int,re.findall(r'\d+',next(n for n in nodes() if n.get('text')=='常 用 应 用').get('bounds'))))
 shot('home');passed('PASS home with remote focus')
 # The last favorite must enter the footer at All Apps, not its geometric neighbor.
-key(19,12)
+all_apps=next(n for n in nodes() if n.get('text')=='全部应用' and n.get('clickable')=='true')
+x1,y1,x2,y2=map(int,re.findall(r'\d+',all_apps.get('bounds')))
+run('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+run('shell','am','start','-a','android.intent.action.MAIN','-c','android.intent.category.HOME','-n','tv.skyhome/.MainActivity')
+key(20)  # footer Down wraps to the first favorite
 home_tree=nodes()
 favorite_scroll=next(n for n in home_tree if n.get('class')=='android.widget.ScrollView')
 visible_favorites=[n.get('text') for n in favorite_scroll.iter('node') if n.get('focusable')=='true']
@@ -81,7 +86,11 @@ assert path[:len(visible_favorites)]==visible_favorites, (path,visible_favorites
 shot('favorites-to-all-apps')
 key(22);assert focused().get('text')=='信号源'
 key(21);assert focused().get('text')=='全部应用'
-passed('PASS favorites order and last-favorite Down -> All Apps; footer Left/Right unchanged')
+key(20);assert focused().get('text')==visible_favorites[0]
+key(19);assert focused().get('text')=='全部应用'
+key(19);assert focused().get('text')==path[-1]
+key(20);assert focused().get('text')=='全部应用'
+passed('PASS favorites/footer vertical cycle; footer Left/Right unchanged')
 if args.home_focus_only:
     (out/'results.txt').write_text('\n'.join(results)+'\n')
     print('Home focus verification complete.');raise SystemExit(0)
@@ -97,10 +106,13 @@ assert focused().get('text').startswith('背景')
 key(23)
 assert focused().get('text')==backgroundFocus,(focused().get('text'),backgroundFocus)
 passed('PASS stacked background menu; Back restores parent and child focus')
-key(20,20)
+key(19,3)  # from row 2, cross the first row to the last
 n=focused();assert n.get('text')=='返回上一级',n.attrib
 _,y1,_,y2=map(int,re.findall(r'\d+',n.get('bounds')));assert 150<y1<y2<1000,n.attrib
 shot('background-bottom');passed('PASS scroll reaches last row inside viewport')
+key(20);assert focused().get('text').startswith('自动轮播')
+key(19);assert focused().get('text')=='返回上一级'
+passed('PASS text list wraps both ways and reveals the destination')
 key(21)
 assert focused().get('text').startswith('背景')
 passed('PASS left returns one menu level')
@@ -131,9 +143,11 @@ passed('PASS nested edit grid and parent focus restoration')
 tap('全部应用');check_center('全部应用');grid=focused();first=grid.get('text');shot('apps');passed('PASS title-free submenus centered vertically with the home left margin')
 key(22);second=focused().get('text');assert second!=first
 key(21);assert focused().get('text')==first
-key(19);assert focused().get('text')==first
-key(20,30);bottom=focused();assert bottom is not None
-shot('apps-bottom');passed('PASS grid D-pad navigation and top/bottom boundaries')
+key(19);bottom=focused();assert bottom is not None
+assert re.findall(r'\d+',bottom.get('bounds'))[0]==re.findall(r'\d+',grid.get('bounds'))[0]
+key(20);assert focused().get('text')==first
+key(19);bottom=focused()
+shot('apps-bottom');passed('PASS grid D-pad navigation and same-column Up/Down wrap')
 run('shell','input','keyevent','--longpress','23');time.sleep(.5)
 assert any(n.get('text')=='打开应用' and n.get('clickable')=='true' for n in nodes())
 shot('app-actions')

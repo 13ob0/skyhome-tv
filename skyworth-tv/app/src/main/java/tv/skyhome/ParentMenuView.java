@@ -15,7 +15,7 @@ final class ParentMenuView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final List<String> labels = new ArrayList<>();
     private String heading = "";
-    private int selection = -1, scrollY;
+    private int selection = -1, scrollY, rowHeight;
     private float textSp = 23;
 
     ParentMenuView(Context context) {
@@ -24,9 +24,9 @@ final class ParentMenuView extends View {
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
 
-    void showMenu(String title, List<String> entries, int selected, int offset, float size) {
+    void showMenu(String title, List<String> entries, int selected, int offset, float size, int stride) {
         heading=title;labels.clear();labels.addAll(entries);
-        selection=selected;scrollY=offset;textSp=size;invalidate();
+        selection=selected;scrollY=offset;textSp=size;rowHeight=stride;invalidate();
     }
 
     private float dp(float n) { return n*getResources().getDisplayMetrics().density; }
@@ -51,10 +51,10 @@ final class ParentMenuView extends View {
         line(canvas,heading,0,dp(34),12,160);
         int save=canvas.save();canvas.clipRect(0,dp(34),getWidth(),getHeight());
         for(int i=0;i<labels.size();i++) {
-            float y=dp(40+i*54)-scrollY;
-            if(y+dp(54)<dp(34)||y>getHeight())continue;
+            float y=dp(40)+i*rowHeight-scrollY;
+            if(y+rowHeight<dp(34)||y>getHeight())continue;
             boolean selected=i==selection;
-            line(canvas,labels.get(i),y,dp(54),textSp*(selected?1.2f:1f),selected?255:170);
+            line(canvas,labels.get(i),y,rowHeight,textSp*(selected?1.2f:1f),selected?255:170);
         }
         canvas.restoreToCount(save);
     }

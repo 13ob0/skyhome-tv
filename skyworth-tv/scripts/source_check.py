@@ -35,11 +35,12 @@ def home():
     time.sleep(.5)
 def menu():
     home()
-    # Touch can either focus or activate an already-focused TextView. Use only
-    # directional input so repeated runs never accidentally select the first source.
-    key(*([20]*12))
-    key(*([21]*6))
-    key(22,23)
+    # On the validated 55F1/default inset, tap the source footer to establish its
+    # focus. HOME closes a sheet if the tap activated it, leaving that footer focused.
+    # Repeated Up/Down no longer anchors focus now that lists wrap.
+    adb('shell','input','tap','375','970')
+    home()
+    key(23)
     time.sleep(.6)
 def capture(name):
     raw=adb('exec-out','screencap','-p')
@@ -47,7 +48,6 @@ def capture(name):
 def select(target):
     sources=query('source_list')
     menu()
-    key(*([19]*12))  # first row, even if a remembered focus exists
     index=sources.index(target)
     if index:key(*([20]*index))
     key(23)
@@ -74,7 +74,6 @@ try:
         assert 'tv.skyhome/.MainActivity' in resumed(),resumed()
         print('PASS HDMI'+str(port+1)+' and Home return',flush=True)
     menu()
-    key(*([19]*12))
     key(*([20]*len(sources)))
     key(23)
     time.sleep(2)

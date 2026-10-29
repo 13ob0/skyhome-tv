@@ -17,6 +17,7 @@ public class MainActivity extends Activity {
     private static final int WHITE = 0xffffffff, MUTED = 0xff9ca7aa, GREEN = 0xffb5c0bf;
     private FrameLayout root, home, homeBody, panel;
     private final List<MenuPage> pages = new ArrayList<>();
+    private final List<View> homeFavorites = new ArrayList<>();
     private final Map<String,MenuPosition> menuPositions = new HashMap<>();
     private static final class MenuPosition {
         String focusTag;int scrollY;
@@ -135,6 +136,17 @@ public class MainActivity extends Activity {
     private int screenMargin() { return Math.round(getResources().getDisplayMetrics().widthPixels*.065f)+dp((prefs.inset()-1)*12); }
     private int contentTop() { return Math.round(getResources().getDisplayMetrics().heightPixels*.43f); }
     private int dp(float n) { return Math.round(n*getResources().getDisplayMetrics().density); }
+    // Include the 1.2x focused glyphs and vertical padding, also at system font scales above 1.
+    private int actionHeight(float size, int lines, int minimumDp) {
+        Paint paint=new Paint();paint.setTypeface(Typeface.create("sans-serif",Typeface.NORMAL));
+        paint.setTextSize(size*getResources().getDisplayMetrics().scaledDensity);
+        Paint.FontMetrics fm=paint.getFontMetrics();
+        return Math.max(dp(minimumDp),(int)Math.ceil((fm.bottom-fm.top)*lines*1.2f)+dp(14));
+    }
+    private int homeRowHeight() { return actionHeight(Typography.home(prefs.size()),1,Typography.homeHeight(prefs.size())); }
+    private int menuRowHeight() { return actionHeight(Typography.menu(prefs.size()),1,Typography.menuHeight(prefs.size())); }
+    private int gridRowHeight() { return actionHeight(Typography.grid(prefs.size()),2,Typography.gridHeight(prefs.size())); }
+    private int footerHeight() { return actionHeight(Typography.footer(prefs.size()),1,46); }
     private FrameLayout.LayoutParams full() { return new FrameLayout.LayoutParams(-1,-1); }
     private LinearLayout vertical() { LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
     private TextView text(String value, float size, int color) {
@@ -196,8 +208,8 @@ public class MainActivity extends Activity {
                 ()->notifyResult(DeviceActions.cast(this),"未找到可用的投屏应用"),()->notifyResult(DeviceActions.stockHome(this),"原桌面暂时无法打开"),this::showSettings};
         firstHome=null;
         for(int i=0;i<titles.length;i++) {
-            TextView b=button(titles[i],actions[i]); b.setTag("tool"+i);
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(Math.round(b.getPaint().measureText(titles[i])*1.25f)+dp(12),dp(46)); p.rightMargin=dp(23);footer.addView(b,p);
+            TextView b=button(titles[i],actions[i]); b.setTag("tool"+i);b.setTextSize(Typography.footer(prefs.size()));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(Math.round(b.getPaint().measureText(titles[i])*1.25f)+dp(12),footerHeight()); p.rightMargin=dp(23);footer.addView(b,p);
             if(firstHome==null) firstHome=b;
         }
         FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.LEFT);
@@ -209,32 +221,43 @@ public class MainActivity extends Activity {
     }
     private void buildList() {
         LinearLayout area=vertical();
-        TextView eyebrow=text("常 用 应 用",16,GREEN);eyebrow.setPadding(dp(3),0,0,0);
+        TextView eyebrow=text("常 用 应 用",20,GREEN);eyebrow.setPadding(dp(3),0,0,0);
         area.addView(eyebrow,new LinearLayout.LayoutParams(-1,dp(34)));
         ScrollView scroll=new ScrollView(this);scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
         scroll.setFocusable(false);scroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);scroll.setFillViewport(false);
         LinearLayout list=vertical();list.setPadding(dp(3),dp(6),dp(3),dp(6));
         for(String pkg:favorites) {
-            TextView b=button(label(pkg),()->openApp(pkg));b.setTag(pkg);b.setTextSize(23+prefs.size()*3);
+            TextView b=button(label(pkg),()->openApp(pkg));b.setTag(pkg);b.setTextSize(Typography.home(prefs.size()));
             b.setOnLongClickListener(v->{showFavoriteActions(pkg);return true;});
-            LinearLayout.LayoutParams row=new LinearLayout.LayoutParams(-1,dp(48));
+            LinearLayout.LayoutParams row=new LinearLayout.LayoutParams(-1,homeRowHeight());
             row.bottomMargin=list.getChildCount()<favorites.size()-1?dp(3):0;list.addView(b,row);
             if(list.getChildCount()==1)firstHome=b;
         }
         if(favorites.isEmpty()) {
-            TextView add=button("添加常用应用  +",()->showApps(true));add.setTag("add-favorite");
-            list.addView(add,new LinearLayout.LayoutParams(-1,dp(48)));firstHome=add;
+            TextView add=button("添加常用应用  +",()->showApps(true));add.setTag("add-favorite");add.setTextSize(Typography.home(prefs.size()));
+            list.addView(add,new LinearLayout.LayoutParams(-1,homeRowHeight()));firstHome=add;
         }
-        // Leave the favorites list through its explicit entry, regardless of row width.
+        // The footer is the final vertical stop, preserving access to every home tool.
         View allApps=home.findViewWithTag("tool0");
-        list.getChildAt(list.getChildCount()-1).setNextFocusDownId(allApps.getId());
-        int count=Math.max(1,favorites.size()), row=dp(48), gap=dp(3), padding=dp(6)*2;
-        int available=getResources().getDisplayMetrics().heightPixels-contentTop()-dp(120)-dp(34);
+        homeFavorites.clear();
+        for(int i=0;i<list.getChildCount();i++)homeFavorites.add(list.getChildAt(i));
+        for(int i=0;i<homeFavorites.size();i++) {
+            View item=homeFavorites.get(i);
+            item.setNextFocusUpId((i==0?allApps:homeFavorites.get(i-1)).getId());
+            item.setNextFocusDownId((i+1==homeFavorites.size()?allApps:homeFavorites.get(i+1)).getId());
+        }
+        for(int i=0;i<5;i++) {
+            View tool=home.findViewWithTag("tool"+i);
+            tool.setNextFocusUpId(homeFavorites.get(homeFavorites.size()-1).getId());
+            tool.setNextFocusDownId(homeFavorites.get(0).getId());
+        }
+        int count=Math.max(1,favorites.size()), row=homeRowHeight(), gap=dp(3), padding=dp(6)*2;
+        int available=getResources().getDisplayMetrics().heightPixels-contentTop()-dp(48)-footerHeight()-dp(8)-dp(34);
         int visible=Math.min(count,Math.max(1,(available-padding+gap)/(row+gap)));
         int viewport=visible*row+(visible-1)*gap+padding;
         scroll.addView(list);area.addView(scroll,new LinearLayout.LayoutParams(-1,viewport));
-        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(dp(320),-2,Gravity.TOP|Gravity.LEFT);
+        FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(Math.min(dp(460),getResources().getDisplayMetrics().widthPixels-screenMargin()*2),-2,Gravity.TOP|Gravity.LEFT);
         ap.leftMargin=screenMargin();ap.topMargin=contentTop();homeBody.addView(area,ap);
     }
     private void restoreHomeFocus() {
@@ -376,14 +399,14 @@ public class MainActivity extends Activity {
         if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)highlightHome(group.getChildAt(i),showingMenu);}
     }
     private void updateParentEcho(int width,int height,int margin) {
-        List<String> labels=new ArrayList<>();int selected=-1,offset=0;String title;float size;
+        List<String> labels=new ArrayList<>();int selected=-1,offset=0,stride;String title;float size;
         if(pages.size()==1) {
-            title="首页";size=23+prefs.size()*3;
+            title="首页";size=Typography.home(prefs.size());stride=homeRowHeight()+dp(3);
             for(String pkg:favorites)labels.add(label(pkg));
             selected=favorites.indexOf(homeFocus);
             if(labels.isEmpty())labels.add("添加常用应用");
         } else {
-            MenuPage previous=pages.get(pages.size()-2);title=previous.title;size=22+prefs.size();
+            MenuPage previous=pages.get(pages.size()-2);title=previous.title;size=previous.grid?Typography.grid(prefs.size()):Typography.menu(prefs.size());stride=previous.grid?gridRowHeight():menuRowHeight();
             for(int i=0;i<previous.actions.size();i++) {
                 TextView action=previous.actions.get(i);
                 String value=action.getText().toString();
@@ -399,7 +422,7 @@ public class MainActivity extends Activity {
         int y=Math.round(height*.39f);
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(Math.max(dp(20),margin-dp(12)),Math.max(dp(80),height-y-dp(112)));
         lp.topMargin=y;parentEcho.setLayoutParams(lp);
-        parentEcho.showMenu(title,labels,selected,offset,size);parentEcho.setAlpha(.23f);
+        parentEcho.showMenu(title,labels,selected,offset,size,stride);parentEcho.setAlpha(.23f);
     }
     /** Center the actual list (or its capped scroll viewport); retain the left edge parent echo. */
     private void layoutMenus(boolean entering) {
@@ -420,12 +443,12 @@ public class MainActivity extends Activity {
             page.scroll.setFocusable(current&&page.reading);page.scroll.setFocusableInTouchMode(current&&page.reading);
             if(!current)continue;
             int columnWidth=width-margin*2,padding=dp(6)*2;
-            int maximum=Math.max(dp(94),Math.min(Math.round(height*.64f),height-dp(320)));
+            int maximum=Math.max(dp(94),Math.min(Math.round(height*.64f),height-dp(240)));
             page.content.measure(View.MeasureSpec.makeMeasureSpec(columnWidth,View.MeasureSpec.EXACTLY),
                     View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));
             int needed=page.content.getMeasuredHeight(),columnHeight=Math.min(needed,maximum);
             if(!page.reading&&needed>maximum) {
-                int stride=dp(page.grid?82:54);
+                int stride=page.grid?gridRowHeight():menuRowHeight();
                 columnHeight=padding+Math.max(1,(maximum-padding)/stride)*stride;
             }
             FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(columnWidth,columnHeight);
@@ -447,11 +470,11 @@ public class MainActivity extends Activity {
     }
     private void wirePage(MenuPage page) {
         List<TextView> items=page.actions;
-        int columns=page.grid?4:1;
+        int columns=page.grid?Typography.GRID_COLUMNS:1;
         for(int i=0;i<items.size();i++) {
             TextView b=items.get(i);
-            b.setNextFocusUpId(items.get(i>=columns?i-columns:i).getId());
-            b.setNextFocusDownId(items.get(i+columns<items.size()?i+columns:i).getId());
+            b.setNextFocusUpId(items.get(FocusNavigation.verticalTarget(i,items.size(),columns,true)).getId());
+            b.setNextFocusDownId(items.get(FocusNavigation.verticalTarget(i,items.size(),columns,false)).getId());
             b.setNextFocusLeftId(items.get(page.grid&&i%columns>0?i-1:i).getId());
             b.setNextFocusRightId(items.get(page.grid&&i%columns<columns-1&&i+1<items.size()?i+1:i).getId());
         }
@@ -484,9 +507,9 @@ public class MainActivity extends Activity {
         restoreHomeFocus();priorFocus=null;scheduleCycle();
     }
     private TextView row(LinearLayout content,String label,Runnable action) {
-        TextView b=button(label,action);b.setTextSize(22+prefs.size());
+        TextView b=button(label,action);b.setTextSize(Typography.menu(prefs.size()));
         MenuPage page=topPage();b.setTag("row"+page.actions.size());page.actions.add(b);
-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(54));content.addView(b,p);return b;
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,menuRowHeight());content.addView(b,p);return b;
     }
     private void showApps(boolean edit) {
         refreshApps();
@@ -494,17 +517,17 @@ public class MainActivity extends Activity {
         MenuPage page=topPage();LinearLayout gridRow=null;
         for(int i=0;i<apps.size();i++) {
             DeviceActions.AppEntry app=apps.get(i);
-            if(i%4==0) {gridRow=new LinearLayout(this);content.addView(gridRow,new LinearLayout.LayoutParams(-1,-2));}
+            if(i%Typography.GRID_COLUMNS==0) {gridRow=new LinearLayout(this);content.addView(gridRow,new LinearLayout.LayoutParams(-1,-2));}
             boolean selected=favorites.contains(app.pkg);
             TextView b=button((edit&&selected?"✓  ":"")+app.name,()-> {
                 if(edit){toggleFavorite(app.pkg);showApps(true);}else openApp(app.pkg);
             });
-            b.setTag(app.pkg);b.setTextSize(18+prefs.size());b.setSingleLine(false);b.setMaxLines(2);
+            b.setTag(app.pkg);b.setTextSize(Typography.grid(prefs.size()));b.setSingleLine(false);b.setMaxLines(2);
             b.setEllipsize(android.text.TextUtils.TruncateAt.END);
             b.setOnLongClickListener(v->{showFavoriteActions(app.pkg);return true;});page.actions.add(b);
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(82),1);p.rightMargin=dp(8);gridRow.addView(b,p);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,gridRowHeight(),1);p.rightMargin=dp(8);gridRow.addView(b,p);
         }
-        if(gridRow!=null)while(gridRow.getChildCount()<4)gridRow.addView(new View(this),new LinearLayout.LayoutParams(0,1,1));
+        if(gridRow!=null)while(gridRow.getChildCount()<Typography.GRID_COLUMNS)gridRow.addView(new View(this),new LinearLayout.LayoutParams(0,1,1));
         if(apps.isEmpty())row(content,"未找到应用 · 返回上级",this::closePanel);
     }
     private void toggleFavorite(String pkg) {
@@ -565,7 +588,7 @@ public class MainActivity extends Activity {
         row(c,"返回上一级",this::closePanel);
     }
     private void showAbout() {
-        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.4 · 原生文字桌面",false,this::showAbout);
+        LinearLayout c=sheet("about","关于山岚  1.2","版本 1.2.5 · 原生文字桌面",false,this::showAbout);
         row(c,"设备信息与使用说明",this::showInfo);
         row(c,"许可与照片署名",this::showLicenses);
         row(c,"返回上一级",this::closePanel);
@@ -595,12 +618,15 @@ public class MainActivity extends Activity {
         }
         if(key==KeyEvent.KEYCODE_DPAD_LEFT && topPage()!=null) {
             MenuPage page=topPage();int index=page.actions.indexOf(getCurrentFocus());
-            if(!page.grid || index<0 || index%4==0){closePanel();return true;}
+            if(!page.grid || index<0 || index%Typography.GRID_COLUMNS==0){closePanel();return true;}
         }
         return super.onKeyDown(key,event);
     }
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         int key=event.getKeyCode();
+        if(event.getAction()==KeyEvent.ACTION_DOWN
+                && (key==KeyEvent.KEYCODE_DPAD_UP || key==KeyEvent.KEYCODE_DPAD_DOWN)
+                && moveVerticalFocus(key==KeyEvent.KEYCODE_DPAD_UP))return true;
         if(key==KeyEvent.KEYCODE_DPAD_CENTER || key==KeyEvent.KEYCODE_ENTER || key==KeyEvent.KEYCODE_NUMPAD_ENTER) {
             if(event.getAction()==KeyEvent.ACTION_DOWN) {
                 if(event.getRepeatCount()==0) {
@@ -620,6 +646,29 @@ public class MainActivity extends Activity {
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+    private boolean moveVerticalFocus(boolean up) {
+        View focused=getCurrentFocus(), target=null;
+        MenuPage page=topPage();
+        if(page!=null) {
+            if(page.reading)return false;
+            int index=page.actions.indexOf(focused);
+            if(index<0 || !focused.isEnabled())return false;
+            target=page.actions.get(FocusNavigation.verticalTarget(index,page.actions.size(),page.grid?Typography.GRID_COLUMNS:1,up));
+        } else {
+            int index=homeFavorites.indexOf(focused);
+            if(index>=0) {
+                int next=index+(up?-1:1);
+                target=next<0 || next>=homeFavorites.size()?home.findViewWithTag("tool0"):homeFavorites.get(next);
+            } else {
+                for(int i=0;i<5;i++)if(focused==home.findViewWithTag("tool"+i)) {
+                    target=homeFavorites.get(up?homeFavorites.size()-1:0);break;
+                }
+            }
+        }
+        // Request focus directly so ScrollView reveals a far-away wrap target on this press,
+        // instead of consuming several presses to scroll towards an off-screen candidate.
+        return target!=null && target.requestFocus();
     }
     @Override public void onBackPressed() {
         if(panel!=null){closePanel();return;}

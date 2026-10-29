@@ -15,11 +15,11 @@
 
 ## 安装与操作
 
-当前版本为 [1.2.4 公开测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.2.4)。
+当前源码与本机测试版为 1.2.5，新增上下循环和大字布局；公开下载仍为 [1.2.4 测试版](https://github.com/13ob0/skyhome-tv/releases/tag/v1.2.4)。
 
 ```sh
 adb connect <电视IP>:5555
-adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.4.apk
+adb -s <电视IP>:5555 install --no-incremental -r skyhome-v1.2.5.apk
 adb -s <电视IP>:5555 shell am start -n tv.skyhome/.MainActivity
 ```
 
@@ -27,7 +27,8 @@ adb -s <电视IP>:5555 shell am start -n tv.skyhome/.MainActivity
 
 | 按键 | 操作 |
 | --- | --- |
-| 上下左右 | 移动焦点，应用较多时自动滚动 |
+| 上下 | 列表首尾循环；网格按列循环，目标项自动滚动到可见位置；阅读页滚动正文 |
+| 左右 | 移动焦点；首页底部操作区保持左右选择 |
 | 确认 | 打开应用或保存选项 |
 | 长按确认 | 编辑应用常用状态与顺序 |
 | 菜单 | 打开设置 |
